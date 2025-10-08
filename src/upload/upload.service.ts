@@ -25,12 +25,43 @@ export class UploadService {
     this.bucket = this.config.getOrThrow('AWS_S3_BUCKET');
   }
 
+  /**
+   * Sanitizes filename by removing accents and special characters
+   * @param filename - Original filename
+   * @returns Sanitized filename safe for S3
+   */
+  private sanitizeFilename(filename: string): string {
+    // Extract extension
+    const lastDotIndex = filename.lastIndexOf('.');
+    const name = lastDotIndex !== -1 ? filename.substring(0, lastDotIndex) : filename;
+    const extension = lastDotIndex !== -1 ? filename.substring(lastDotIndex) : '';
+
+    // Normalize accents (NFD = decomposed form)
+    // Then remove combining diacritical marks
+    const normalized = name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+    // Replace spaces and special characters with hyphens
+    // Allow only alphanumeric, hyphens, and underscores
+    const sanitized = normalized
+      .replace(/\s+/g, '-')           // spaces to hyphens
+      .replace(/[^a-zA-Z0-9_-]/g, '') // remove special chars
+      .replace(/-+/g, '-')            // multiple hyphens to single
+      .replace(/^-|-$/g, '');         // trim hyphens from edges
+
+    return sanitized + extension.toLowerCase();
+  }
+
   // ⬇️ PASA también el mimetype (file.mimetype)
   async upload(fileName: string, file: Buffer, mime?: string) {
+    // Sanitize filename before uploading to S3
+    const sanitizedFileName = this.sanitizeFilename(fileName);
+
     const put = await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucket,
-        Key: fileName,
+        Key: sanitizedFileName,
         Body: file,
         ContentType: mime ?? 'application/octet-stream',
         // ContentDisposition: 'inline', // opcional como default en el objeto
@@ -38,7 +69,7 @@ export class UploadService {
       }),
     );
     return {
-      fileName,
+      fileName: sanitizedFileName,
       eTag: put.ETag,
       status: put.$metadata.httpStatusCode,
     };

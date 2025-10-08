@@ -16,6 +16,7 @@ import { UpdateAssetUserDto } from './dto/update-asset-user.dto';
 import { FindAssetsQueryDto } from './dto/find-assets.query.dto';
 import { ApikeyGuard } from '../auth/guards/apikey.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -60,6 +61,7 @@ export class AssetController {
   }
 
   @Get()
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({
     summary: 'Obtener todos los activos con filtros',
     description: 'Los usuarios no administradores solo verán activos no confidenciales. Los administradores y super_administradores verán todos los activos.'
@@ -123,6 +125,7 @@ export class AssetController {
   }
 
   @Get(':id')
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiOperation({
     summary: 'Obtener un activo por ID',
     description: 'Los usuarios no administradores no podrán ver activos confidenciales. Los administradores y super_administradores verán todos los activos.'

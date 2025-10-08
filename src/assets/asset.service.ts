@@ -108,9 +108,10 @@ export class AssetService {
       const filter: FilterQuery<AssetDocument> = {};
 
       // Filter confidential assets based on user role
+      // Only administrador and super_administrador can see confidential assets
       const isAdmin = userRole === 'administrador' || userRole === 'super_administrador';
       if (!isAdmin) {
-        // Non-admin users can only see non-confidential assets
+        // Non-admin users (including undefined/no role) can only see non-confidential assets
         filter.$or = [
           { confidentiality: false },
           { confidentiality: { $exists: false } },
@@ -322,6 +323,7 @@ export class AssetService {
       if (!asset) throw new NotFoundException(`Asset with id ${id} not found`);
 
       // Check if user has permission to view confidential asset
+      // Only administrador and super_administrador can see confidential assets
       const isAdmin = userRole === 'administrador' || userRole === 'super_administrador';
       if (asset.confidentiality && !isAdmin) {
         throw new NotFoundException(`Asset with id ${id} not found`);

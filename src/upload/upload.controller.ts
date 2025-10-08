@@ -63,7 +63,14 @@ export class UploadController {
     )
     file: Express.Multer.File,
   ) {
-    await this.uploadService.upload(file.originalname, file.buffer);
+    const result = await this.uploadService.upload(file.originalname, file.buffer, file.mimetype);
+    return {
+      success: true,
+      message: 'File uploaded successfully',
+      originalName: file.originalname,
+      sanitizedName: result.fileName,
+      eTag: result.eTag,
+    };
   }
 
   @Get('download')

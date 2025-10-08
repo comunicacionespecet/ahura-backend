@@ -77,9 +77,12 @@ export class UploadService {
 
   // 🔽 Forzar DESCARGA
   async getDownloadUrl(key: string, expiresIn = 900) {
+    // Sanitize the key to match how it was stored
+    const sanitizedKey = this.sanitizeFilename(key);
+
     const cmd = new GetObjectCommand({
       Bucket: this.bucket,
-      Key: key,
+      Key: sanitizedKey,
       ResponseContentDisposition: `attachment; filename="${encodeURIComponent(key)}"; filename*=UTF-8''${encodeURIComponent(key)}`,
     });
     const url = await getSignedUrl(this.client, cmd, { expiresIn });
@@ -88,11 +91,14 @@ export class UploadService {
 
   // 🔽 PREVISUALIZACIÓN (inline)
   async getPreviewUrl(key: string, expiresIn = 900) {
+    // Sanitize the key to match how it was stored
+    const sanitizedKey = this.sanitizeFilename(key);
+
     // (Opcional) leer el ContentType real del objeto
     let contentType = 'application/octet-stream';
     try {
       const head = await this.client.send(
-        new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
+        new HeadObjectCommand({ Bucket: this.bucket, Key: sanitizedKey }),
       );
       if (head.ContentType) contentType = head.ContentType;
     } catch {
@@ -101,7 +107,7 @@ export class UploadService {
 
     const cmd = new GetObjectCommand({
       Bucket: this.bucket,
-      Key: key,
+      Key: sanitizedKey,
       ResponseContentDisposition: `inline; filename="${encodeURIComponent(key)}"; filename*=UTF-8''${encodeURIComponent(key)}`,
       ResponseContentType: contentType,
     });

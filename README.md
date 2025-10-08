@@ -19,16 +19,20 @@ AHURA es una API RESTful para la gestión integral de activos de conocimiento em
 - 📁 **Subida de archivos** con almacenamiento en AWS S3
 - 🏷️ **Catálogos dinámicos** para clasificación de contenido
 - 🔍 **Búsquedas avanzadas** con paginación y filtros anidados
+- 🤖 **Búsqueda semántica con IA** usando embeddings y Elasticsearch
+- 📄 **Extracción de texto** de PDF y DOCX automática
 - 📖 **Documentación Swagger** completa e interactiva
 
 ## 🛠️ Tecnologías
 
 - **Framework**: NestJS 11.x
 - **Base de Datos**: MongoDB con Mongoose
+- **Búsqueda**: Elasticsearch + Sentence Transformers
 - **Autenticación**: JWT + Passport
 - **Documentación**: Swagger/OpenAPI
 - **Validación**: Class Validator + Class Transformer
 - **Almacenamiento**: AWS S3
+- **IA/ML**: Python FastAPI (embeddings service)
 - **Testing**: Jest
 - **Linting**: ESLint + Prettier
 
@@ -39,6 +43,8 @@ AHURA es una API RESTful para la gestión integral de activos de conocimiento em
 - Node.js >= 18.x
 - MongoDB >= 5.x
 - AWS S3 Bucket (para archivos)
+- Elasticsearch >= 8.x (para búsqueda semántica)
+- Python >= 3.8 (para servicio de embeddings)
 
 ### 1. Clonar el Repositorio
 
@@ -86,13 +92,40 @@ EMAIL_PASS=tu_password
 PORT=3000
 ```
 
-### 4. Iniciar MongoDB
+### 4. Iniciar Servicios Necesarios
 
+#### MongoDB
 ```bash
 # Con Docker
 docker run -d -p 27017:27017 --name mongodb mongo:latest
 
 # O usar MongoDB Atlas (recomendado para producción)
+```
+
+#### Elasticsearch (para búsqueda semántica)
+```bash
+# Con Docker
+docker run -d \
+  --name elasticsearch \
+  -p 9200:9200 \
+  -p 9300:9300 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+```
+
+#### Servicio de Embeddings (Python)
+```bash
+# Instalar dependencias Python
+cd Backia
+pip install -r requirements.txt
+
+# Iniciar servicio
+python api/embedding_service.py
+
+# O usar el script de inicio
+chmod +x start-embedding-service.sh
+./start-embedding-service.sh
 ```
 
 ## 🚀 Ejecución
@@ -199,6 +232,15 @@ X-API-Key: tu_api_key_secreta
 - `POST /loggers` - Crear log de auditoría
 - `GET /loggers/:id` - Obtener log por ID
 
+#### Búsqueda Semántica con IA 🤖
+- `POST /search/upload` - Subir y indexar documento (PDF/DOCX)
+- `POST /search/upload-link` - Indexar documento desde URL
+- `POST /search` - Búsqueda semántica por similitud
+- `GET /search/preview/:id` - Obtener preview de documento
+- `GET /search/dashboard` - Estadísticas de búsqueda
+
+> 📚 Para más detalles sobre la búsqueda semántica, ver [SEARCH_INTEGRATION.md](SEARCH_INTEGRATION.md)
+
 ## 🔍 Ejemplos de Uso
 
 ### Autenticarse y Obtener Token
@@ -258,6 +300,23 @@ curl -X GET "http://localhost:3000/comments?assetId=ASSET-001&userName=Juan" \
   -H "Authorization: Bearer tu_jwt_token"
 ```
 
+### Búsqueda Semántica con IA
+
+```bash
+# Subir y indexar un documento
+curl -X POST "http://localhost:3000/search/upload" \
+  -H "Authorization: Bearer tu_jwt_token" \
+  -F "file=@manual.pdf"
+
+# Buscar usando lenguaje natural
+curl -X POST "http://localhost:3000/search" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "¿Cómo configurar la autenticación JWT?",
+    "top_k": 5
+  }'
+```
+
 ## 🧪 Testing
 
 ```bash
@@ -294,6 +353,16 @@ src/
 │   ├── asset.controller.ts # Controlador de activos
 │   └── asset.service.ts    # Lógica de negocio
 │
+├── search/                  # 🤖 Módulo de búsqueda IA
+│   ├── dto/                # DTOs de búsqueda
+│   ├── elasticsearch.config.ts     # Config de Elasticsearch
+│   ├── text-extraction.service.ts  # Extracción de texto
+│   ├── embedding.service.ts        # Generación de embeddings
+│   ├── document-indexing.service.ts # Indexación
+│   ├── semantic-search.service.ts  # Búsqueda semántica
+│   ├── document-storage.service.ts # Almacenamiento S3
+│   └── search.controller.ts        # Controlador de búsqueda
+│
 ├── comments/                 # Módulo de comentarios
 ├── users/                   # Módulo de usuarios
 ├── upload/                  # Módulo de archivos
@@ -302,6 +371,11 @@ src/
 │
 └── common/                  # Recursos compartidos
     └── dto/                # DTOs comunes (errores, respuestas)
+
+Backia/                      # 🐍 Servicio Python de embeddings
+├── api/
+│   └── embedding_service.py # Servicio FastAPI para embeddings
+└── requirements.txt         # Dependencias Python
 ```
 
 ## 🚀 Despliegue

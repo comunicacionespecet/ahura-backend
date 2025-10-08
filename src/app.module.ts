@@ -13,6 +13,7 @@ import { UploadModule } from './upload/upload.module';
 import { AuthModule } from './auth/auth.module';
 import { CatalogModule } from './catalogs/catalog.module';
 import { PasswordResetModule } from './auth/password-reset/password-reset.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { PasswordResetModule } from './auth/password-reset/password-reset.module
     AuthModule,
     CatalogModule,
     PasswordResetModule,
+    SearchModule,
   ],
   controllers: [AppController],
   providers: [AppService],

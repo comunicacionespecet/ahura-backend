@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # Elasticsearch for semantic search
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ahura-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ahura-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Python embedding service
+  embedding-service:
+    build:
+      context: ./Backia
+      dockerfile: Dockerfile.embedding
+    container_name: ahura-embedding-service
+    ports:
+      - "8001:8001"
+    networks:
+      - ahura-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8001/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # MongoDB (if not using Atlas)
+  mongodb:
+    image: mongo:latest
+    container_name: ahura-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ahura-network
+    restart: unless-stopped
+
+volumes:
+  elasticsearch_data:
+    driver: local
+  mongodb_data:
+    driver: local
+
+networks:
+  ahura-network:
+    driver: bridge

@@ -101,10 +101,21 @@ export class AssetService {
 
   async findAll(
     query?: FindAssetsQueryDto,
+    userRole?: string,
   ): Promise<{ items: Asset[]; page: number; limit: number; total: number }> {
     try {
       const q = query || ({} as FindAssetsQueryDto);
       const filter: FilterQuery<AssetDocument> = {};
+
+      // Filter confidential assets based on user role
+      const isAdmin = userRole === 'administrador' || userRole === 'super_administrador';
+      if (!isAdmin) {
+        // Non-admin users can only see non-confidential assets
+        filter.$or = [
+          { confidentiality: false },
+          { confidentiality: { $exists: false } },
+        ];
+      }
 
       // ===== Campos base =====
       if (q.title)
@@ -230,10 +241,10 @@ export class AssetService {
       }
 
       // Atajo: buscar en TODOS los subcampos legales
+      const legalOrConditions: any[] = [];
       if (q.legalAny) {
         const rx = { $regex: this.escapeRegex(q.legalAny), $options: 'i' };
-        filter.$or ??= [];
-        filter.$or.push(
+        legalOrConditions.push(
           { 'legalRegulations.copyright': rx },
           { 'legalRegulations.patents': rx },
           { 'legalRegulations.tradeSecrets': rx },
@@ -244,15 +255,37 @@ export class AssetService {
       }
 
       // ===== Búsqueda global 'q' =====
+      const searchOrConditions: any[] = [];
       if (q.q) {
         const r = { $regex: this.escapeRegex(q.q), $options: 'i' };
-        // Mantiene lo que ya tenías y añade match en keywords
-        filter.$or = [
-          ...(filter.$or ?? []),
+        searchOrConditions.push(
           { title: r },
           { description: r },
           { keywords: { $elemMatch: r } },
-        ];
+        );
+      }
+
+      // Combine all $or conditions with confidentiality filter
+      const allOrConditions = [...legalOrConditions, ...searchOrConditions];
+
+      if (allOrConditions.length > 0) {
+        if (!isAdmin) {
+          // For non-admin: (confidentiality filter) AND (search conditions)
+          filter.$and = [
+            {
+              $or: [
+                { confidentiality: false },
+                { confidentiality: { $exists: false } },
+              ],
+            },
+            { $or: allOrConditions },
+          ];
+          // Remove the initial $or set for confidentiality
+          delete filter.$or;
+        } else {
+          // For admin: just apply search conditions
+          filter.$or = allOrConditions;
+        }
       }
 
       // (Fallback ultra-minimalista): si te llegan keys con notación de puntos
@@ -283,10 +316,17 @@ export class AssetService {
     }
   }
 
-  async findOne(id: string): Promise<Asset> {
+  async findOne(id: string, userRole?: string): Promise<Asset> {
     try {
       const asset = await this.assetModel.findOne({ id }).exec();
       if (!asset) throw new NotFoundException(`Asset with id ${id} not found`);
+
+      // Check if user has permission to view confidential asset
+      const isAdmin = userRole === 'administrador' || userRole === 'super_administrador';
+      if (asset.confidentiality && !isAdmin) {
+        throw new NotFoundException(`Asset with id ${id} not found`);
+      }
+
       return asset;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;

@@ -18,6 +18,8 @@ import { ApikeyGuard } from '../auth/guards/apikey.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PayloadToken } from '../auth/models/token.model';
 import {
   ApiOperation,
   ApiResponse,
@@ -58,7 +60,10 @@ export class AssetController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Obtener todos los activos con filtros' })
+  @ApiOperation({
+    summary: 'Obtener todos los activos con filtros',
+    description: 'Los usuarios no administradores solo verán activos no confidenciales. Los administradores y super_administradores verán todos los activos.'
+  })
   @ApiResponse({
     status: 200,
     description: 'Lista paginada de activos',
@@ -110,18 +115,27 @@ export class AssetController {
     description: 'Ordenamiento (ej: -publishDate,title)',
   })
   @ApiInternalServerErrorResponse({ description: 'Error interno del servidor' })
-  findAll(@Query() q: FindAssetsQueryDto) {
-    return this.assetService.findAll(q);
+  findAll(
+    @Query() q: FindAssetsQueryDto,
+    @CurrentUser() user?: PayloadToken,
+  ) {
+    return this.assetService.findAll(q, user?.role);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Obtener un activo por ID' })
+  @ApiOperation({
+    summary: 'Obtener un activo por ID',
+    description: 'Los usuarios no administradores no podrán ver activos confidenciales. Los administradores y super_administradores verán todos los activos.'
+  })
   @ApiParam({ name: 'id', description: 'ID único del activo' })
   @ApiResponse({ status: 200, description: 'Activo encontrado', type: Asset })
-  @ApiNotFoundResponse({ description: 'Activo no encontrado' })
+  @ApiNotFoundResponse({ description: 'Activo no encontrado o sin permisos para verlo' })
   @ApiInternalServerErrorResponse({ description: 'Error interno del servidor' })
-  findOne(@Param('id') id: string) {
-    return this.assetService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @CurrentUser() user?: PayloadToken,
+  ) {
+    return this.assetService.findOne(id, user?.role);
   }
 
   @Patch(':id')
